@@ -1,0 +1,110 @@
+create table restaurants(
+business_id int, name varchar(200), address varchar(1000), city varchar(100), state varchar(100),
+postal_code varchar(100), latitude float(48), longitude float(48),location varchar(100), phone_number varchar(100),
+inspection_id varchar(100), inspection_date varchar(200), inspection_score int, inspection_type varchar(100),
+violation_id varchar(100), violation_description varchar(1000), risk_category varchar(100));
+
+select count(distinct(business_id)) from restaurants
+
+SELECT business_id, count(*) FROM restaurants GROUP BY business_id ORDER BY COUNT(*) DESC
+
+# get distinct records that have the same name, business_id, address, latitude and longitude
+SELECT DISTINCT business_id, name, address, latitude, longitude, city, postal_code, state
+FROM restaurants ORDER BY business_id, name, address, latitude, longitude, city, postal_code, state
+
+# create table for distinct POIs
+create table dist_rest(business_id int, name varchar(200), address varchar(1000), latitude float(48),
+longitude float(48), city varchar(100), postal_code varchar(100), state varchar(10))
+
+# create geometry field in table
+alter table dist_rest add column geom geometry(Point, 4326)
+update dist_rest set geom=st_SetSrid(st_MakePoint(longitude, latitude), 4326)
+
+
+### LATITUDE AND LONGITUDE
+
+# completeness for latitude and longitude
+select * from dist_rest where latitude is null
+select * from dist_rest where longitude is null
+
+# check ranges for latitude
+select count(*) from dist_rest where latitude not between -90 and 90
+
+# check ranges for longitude
+select count(*) from dist_rest where longitude not between -180 and 180
+
+# show POIs on map
+select geom from dist_rest
+
+
+### POSTAL_CODE
+
+# completeness for postal_code
+select * from dist_rest where postal_code is null
+
+# check length of postal_code
+select postal_code from dist_rest where length(postal_code)<>5
+
+# check if postal_code starts with "94---"
+select postal_code from dist_rest where postal_code not like '94%'
+
+# postal_codes that include at least one non-digit char
+SELECT * FROM dist_rest WHERE postal_code ~ '[^0-9]'
+
+
+### STATE
+
+# completeness for state
+select count(*) from dist_rest where state is not null
+
+# get distinct states
+select distinct(state) from dist_rest
+
+# check if all are standardized since we have only 1 distinct state
+select state from dist_rest where state like 'CA'
+
+
+### CITY
+
+# get completeness for city
+select * from dist_rest where city is null
+
+# get all distinct cities
+select distinct(city) from dist_rest
+
+# check if all cities are standardized to 'San Francisco' since all POIs are in San Francisco
+select city from dist_rest where city like 'San Francisco'
+
+
+### NAME
+
+# completeness for name
+select * from dist_rest where name is null
+
+# get names with all uppercase letters (standardization issues)
+select * from dist_rest where name=upper(name)
+select * from dist_rest where name=lower(name)
+
+# names that include only numbers
+select * from dist_rest where name ~ '^[0-9 ]*$'
+
+# names that include "@" character
+select * from dist_rest where name like '%@%'
+
+
+### ADDRESS
+
+# completeness for address
+select * from dist_rest where address is null
+
+# check for unstandardized addresses
+select * from dist_rest where address=upper(address)
+
+# check for invalid addresses
+select * from dist_rest where upper(address) like '%OFF THE GRID%' or upper(address) like '%OTG%' or upper(address) like '%APPROVED LOCATION%'
+
+# addresses that contain only number
+select * from dist_rest where address ~ '^[0-9 ]*$'
+
+# addresses that do not contain house number (unstandardized)
+select * from dist_rest where address ~ '^[^0-9]+$'
